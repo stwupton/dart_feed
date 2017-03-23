@@ -1,5 +1,13 @@
 import 'package:xml/xml.dart';
 
+class Person {
+  String name;
+  String email;
+  Uri link;
+
+  Person(this.name, {this.email, this.link});
+}
+
 class Item {
   String title;
   String link;
@@ -38,25 +46,62 @@ class Feed {
           ..element('title', nest: feed.title);
 
         // Build recommended elements.
+        if (feed.author != null) {
+          builder.element('author', nest: () {
+            builder.build('name', nest: feed.author.name);
+
+            if (feed.author.email != null)
+              builder.build('email', nest: feed.author.email);
+
+            if (feed.author.link != null)
+              builder.build('uri', nest: feed.author.link.toString());
+          });
+        }
+
         if (feed.link != null) {
-          builder.element(
-              'link',
-              attributes: {'rel': 'alternate'},
-              nest: feed.link.toString());
+          builder.element('link', attributes: {
+            'rel': 'alternate',
+            'href': feed.link.toString()
+          });
         }
 
         if (feed.feed != null) {
-          builder.element(
-              'link',
-              attributes: {'rel': 'self'},
-              nest: feed.feed.toString());
+          builder.element('link', attributes: {
+            'rel': 'self',
+            'href': feed.feed.toString()
+          });
         }
 
         if (feed.hub != null) {
-          builder.element(
-              'link',
-              attributes: {'rel': 'hub'},
-              nest: feed.hub.toString());
+          builder.element('link', attributes: {
+            'rel': 'hub',
+            'href': feed.hub.toString()
+          });
+        }
+
+        // Build optional elements.
+        if (feed.description != null)
+          builder.element('subtitle': nest: feed.description);
+
+        if (feed.image != null)
+          builder.element('logo', nest: feed.image.toString());
+
+        if (feed.copyright != null)
+          builder.element('rights': feed.copyright);
+
+        for (String catagory in feed.catagories)
+          builder.element('catagory', attributes: {'term': catagory});
+
+        for (Person contributor in feed.contributors) {
+          builder.element('contributor', nest: () {
+            builder.build('name', nest: contributor.name);
+
+            if (contributor.email != null)
+              builder.build('email', nest: contributor.email);
+
+            if (contributor.link != null)
+              builder.build('uri', nest: contributor.link.toString());
+          });
         }
 
       });
@@ -65,19 +110,19 @@ class Feed {
 
   static XmlNode _renderRSS2(Feed feed) => '';
 
+  Person author;
   String id;
   String title;
   String description;
   Uri link;
   Uri image;
   String copyright;
-  String feed;
-  String hub;
+  Uri feed;
+  Uri hub;
   DateTime updated;
-  String author;
   List<Item> items = [];
   List<String> catagories = [];
-  List<String> contributors = [];
+  List<Person> contributors = [];
 
   String toXmlString({
       renderer: FeedRenderer.atom,
