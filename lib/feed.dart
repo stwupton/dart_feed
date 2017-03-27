@@ -35,11 +35,8 @@ class Feed {
     XmlBuilder builder = new XmlBuilder();
     builder
       ..processing('xml', 'version="1.0"')
-      ..element(
-          'feed',
-          attributes: {'xmlns': 'http://www.w3.org/2005/Atom'},
+      ..element('feed', attributes: {'xmlns': 'http://www.w3.org/2005/Atom'},
           nest: () {
-
         // Build required elements.
         builder
           ..element('id', nest: feed.id.toString())
@@ -48,13 +45,13 @@ class Feed {
         // Build recommended elements.
         if (feed.author != null) {
           builder.element('author', nest: () {
-            builder.build('name', nest: feed.author.name);
+            builder.element('name', nest: feed.author.name);
 
             if (feed.author.email != null)
-              builder.build('email', nest: feed.author.email);
+              builder.element('email', nest: feed.author.email);
 
             if (feed.author.link != null)
-              builder.build('uri', nest: feed.author.link.toString());
+              builder.element('uri', nest: feed.author.link.toString());
           });
         }
 
@@ -81,29 +78,28 @@ class Feed {
 
         // Build optional elements.
         if (feed.description != null)
-          builder.element('subtitle': nest: feed.description);
+          builder.element('subtitle', nest: feed.description);
 
         if (feed.image != null)
           builder.element('logo', nest: feed.image.toString());
 
         if (feed.copyright != null)
-          builder.element('rights': feed.copyright);
+          builder.element('rights', nest: feed.copyright);
 
         for (String catagory in feed.catagories)
           builder.element('catagory', attributes: {'term': catagory});
 
         for (Person contributor in feed.contributors) {
           builder.element('contributor', nest: () {
-            builder.build('name', nest: contributor.name);
+            builder.element('name', nest: contributor.name);
 
             if (contributor.email != null)
-              builder.build('email', nest: contributor.email);
+              builder.element('email', nest: contributor.email);
 
             if (contributor.link != null)
-              builder.build('uri', nest: contributor.link.toString());
+              builder.element('uri', nest: contributor.link.toString());
           });
         }
-
       });
     return builder.build();
   }
