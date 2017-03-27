@@ -40,7 +40,14 @@ class Feed {
         // Build required elements.
         builder
           ..element('id', nest: feed.id.toString())
-          ..element('title', nest: feed.title);
+          ..element('title', nest: feed.title)
+          ..element('link', attributes: {
+            'rel': 'alternate',
+            'href': feed.link.toString()
+          })
+          ..element('updated', nest: feed.updated == null ?
+              new DateTime.now().toUtc().toString() :
+              feed.updated.toUtc().toString());
 
         // Build recommended elements.
         if (feed.author != null) {
@@ -52,13 +59,6 @@ class Feed {
 
             if (feed.author.link != null)
               builder.element('uri', nest: feed.author.link.toString());
-          });
-        }
-
-        if (feed.link != null) {
-          builder.element('link', attributes: {
-            'rel': 'alternate',
-            'href': feed.link.toString()
           });
         }
 
@@ -86,8 +86,8 @@ class Feed {
         if (feed.copyright != null)
           builder.element('rights', nest: feed.copyright);
 
-        for (String catagory in feed.catagories)
-          builder.element('catagory', attributes: {'term': catagory});
+        for (String category in feed.categories)
+          builder.element('category', attributes: {'term': category});
 
         for (Person contributor in feed.contributors) {
           builder.element('contributor', nest: () {
@@ -100,6 +100,19 @@ class Feed {
               builder.element('uri', nest: contributor.link.toString());
           });
         }
+
+        for (Item item in feed.items) {
+          // Build required item elements.
+          builder.element('entry', nest: () {
+            builder
+              ..element('title', attributes: {'type': 'html'}, nest: () {
+                builder.cdata(item.title);
+              })
+              ..element('id', nest: item.id ?? item.link)
+              ..element('link', attributes: {'href': item.link})
+              ..element('updated', nest: item.date.toUtc().toString());
+          });
+        }
       });
     return builder.build();
   }
@@ -107,18 +120,18 @@ class Feed {
   static XmlNode _renderRSS2(Feed feed) => '';
 
   Person author;
-  String id;
-  String title;
-  String description;
-  Uri link;
-  Uri image;
+  List<String> categories = [];
+  List<Person> contributors = [];
   String copyright;
+  String description;
   Uri feed;
   Uri hub;
-  DateTime updated;
+  String id;
+  Uri image;
   List<Item> items = [];
-  List<String> catagories = [];
-  List<Person> contributors = [];
+  Uri link;
+  String title;
+  DateTime updated;
 
   String toXmlString({
       renderer: FeedRenderer.atom,
@@ -128,6 +141,10 @@ class Feed {
 }
 
 void main() {
-  var feed = new Feed();
+  var feed = new Feed()
+    ..id = 'https://stwupton.test.io/'
+    ..title = 'Steven\'s Blog'
+    ..link = Uri.parse('https://stwupton.github.io/')
+    ..items = [new Item()..title = 'Testing blog post'];
   print(feed.toXmlString(pretty: true));
 }
