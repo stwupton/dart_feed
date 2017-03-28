@@ -1,22 +1,22 @@
 import 'package:xml/xml.dart';
 
 class Person {
-  String name;
   String email;
   Uri link;
+  String name;
 
   Person(this.name, {this.email, this.link});
 }
 
 class Item {
+  List<Person> authors = [];
+  List<Person> contributors = [];
   String title;
   String link;
   String description;
   DateTime date;
   DateTime published;
   Uri image;
-  String author;
-  String contributor;
   String guid;
   String id;
   String content;
@@ -26,100 +26,7 @@ class Item {
 enum FeedRenderer { atom, rss2 }
 
 class Feed {
-  static Map<FeedRenderer, Function> _renderers = {
-    FeedRenderer.atom: _renderAtom,
-    FeedRenderer.rss2: _renderRSS2
-  };
-
-  static XmlNode _renderAtom(Feed feed) {
-    XmlBuilder builder = new XmlBuilder();
-    builder
-      ..processing('xml', 'version="1.0"')
-      ..element('feed', attributes: {'xmlns': 'http://www.w3.org/2005/Atom'},
-          nest: () {
-        // Build required elements.
-        builder
-          ..element('id', nest: feed.id.toString())
-          ..element('title', nest: feed.title)
-          ..element('link', attributes: {
-            'rel': 'alternate',
-            'href': feed.link.toString()
-          })
-          ..element('updated', nest: feed.updated == null ?
-              new DateTime.now().toUtc().toString() :
-              feed.updated.toUtc().toString());
-
-        // Build recommended elements.
-        if (feed.author != null) {
-          builder.element('author', nest: () {
-            builder.element('name', nest: feed.author.name);
-
-            if (feed.author.email != null)
-              builder.element('email', nest: feed.author.email);
-
-            if (feed.author.link != null)
-              builder.element('uri', nest: feed.author.link.toString());
-          });
-        }
-
-        if (feed.feed != null) {
-          builder.element('link', attributes: {
-            'rel': 'self',
-            'href': feed.feed.toString()
-          });
-        }
-
-        if (feed.hub != null) {
-          builder.element('link', attributes: {
-            'rel': 'hub',
-            'href': feed.hub.toString()
-          });
-        }
-
-        // Build optional elements.
-        if (feed.description != null)
-          builder.element('subtitle', nest: feed.description);
-
-        if (feed.image != null)
-          builder.element('logo', nest: feed.image.toString());
-
-        if (feed.copyright != null)
-          builder.element('rights', nest: feed.copyright);
-
-        for (String category in feed.categories)
-          builder.element('category', attributes: {'term': category});
-
-        for (Person contributor in feed.contributors) {
-          builder.element('contributor', nest: () {
-            builder.element('name', nest: contributor.name);
-
-            if (contributor.email != null)
-              builder.element('email', nest: contributor.email);
-
-            if (contributor.link != null)
-              builder.element('uri', nest: contributor.link.toString());
-          });
-        }
-
-        for (Item item in feed.items) {
-          // Build required item elements.
-          builder.element('entry', nest: () {
-            builder
-              ..element('title', attributes: {'type': 'html'}, nest: () {
-                builder.cdata(item.title);
-              })
-              ..element('id', nest: item.id ?? item.link)
-              ..element('link', attributes: {'href': item.link})
-              ..element('updated', nest: item.date.toUtc().toString());
-          });
-        }
-      });
-    return builder.build();
-  }
-
-  static XmlNode _renderRSS2(Feed feed) => '';
-
-  Person author;
+  List<Person> authors = [];
   List<String> categories = [];
   List<Person> contributors = [];
   String copyright;
@@ -133,11 +40,125 @@ class Feed {
   String title;
   DateTime updated;
 
-  String toXmlString({
-      renderer: FeedRenderer.atom,
-      bool pretty: false,
-      String indent: '  '}) =>
-    _renderers[renderer](this).toXmlString(pretty: pretty, indent: indent);
+  XmlNode _renderAtom() {
+    XmlBuilder builder = new XmlBuilder();
+
+    // Utility function for building an xml element describing the properties of
+    // a [Person].
+    void buildPerson(String element, Person person) {
+      builder.element(element, nest: () {
+        builder.element('name', nest: person.name);
+
+        if (person.email != null)
+          builder.element('email', nest: person.email);
+
+        if (person.link != null)
+          builder.element('uri', nest: person.link.toString());
+      });
+    }
+
+    // Utility function for converting all [DateTime] objects to UTC timezones
+    // and to an ISO 8601 formatted [String].
+    String standardiseDateTime(DateTime dateTime) =>
+        dateTime.toUtc().toIso8601String();
+
+    builder
+      ..processing('xml', 'version="1.0"')
+      ..element('feed', attributes: {'xmlns': 'http://www.w3.org/2005/Atom'},
+          nest: () {
+        // Build required elements.
+        builder
+          ..element('id', nest: id.toString())
+          ..element('title', nest: title)
+          ..element('link', attributes: {
+            'rel': 'alternate',
+            'href': link.toString()
+          })
+          ..element('updated', nest: standardiseDateTime(updated == null ?
+              new DateTime.now() :
+              updated));
+
+        // Build recommended elements.
+        for (Person author in authors) buildPerson('author', author);
+
+        if (feed != null) {
+          builder.element('link', attributes: {
+            'rel': 'self',
+            'href': feed.toString()
+          });
+        }
+
+        if (hub != null) {
+          builder.element('link', attributes: {
+            'rel': 'hub',
+            'href': hub.toString()
+          });
+        }
+
+        // Build optional elements.
+        if (description != null) builder.element('subtitle', nest: description);
+        if (image != null) builder.element('logo', nest: image.toString());
+        if (copyright != null) builder.element('rights', nest: copyright);
+
+        for (String category in categories)
+          builder.element('category', attributes: {'term': category});
+
+        for (Person contributor in contributors)
+          buildPerson('contributor', contributor);
+
+        for (Item item in items) {
+          builder.element('entry', nest: () {
+            // Build required item elements.
+            builder
+              ..element('title', attributes: {'type': 'html'}, nest: () {
+                builder.cdata(item.title);
+              })
+              ..element('id', nest: item.id ?? item.link)
+              ..element('link', attributes: {'href': item.link})
+              ..element('updated', nest: standardiseDateTime(item.date));
+
+            // Build recommended item elements.
+            if (item.description != null) {
+              builder.element('summary', attributes: {'type': 'html'},
+                  nest: () {
+                builder.cdata(item.content);
+              });
+            }
+
+            if (item.content != null) {
+              builder.element('content', attributes: {'type': 'html'},
+                  nest: () {
+                builder.cdata(item.content);
+              });
+            }
+
+            for (Person author in item.authors) buildPerson('author', author);
+
+            // Build optional item elements.
+            for (Person contributor in item.contributors)
+              buildPerson('contributor', contributor);
+
+            if (item.published != null) {
+              builder.element('published',
+                  nest: standardiseDateTime(item.published));
+            }
+
+            if (item.copyright != null)
+              builder.element('rights', item.copyright);
+          });
+        }
+      });
+
+    return builder.build();
+  }
+
+  XmlNode _renderRSS2() => '';
+
+  String toXmlString({renderer: FeedRenderer.atom, bool pretty: false,
+      String indent: '  '}) {
+    XmlNode xml = renderer == FeedRenderer.atom ? _renderAtom() : _renderRSS2();
+    return xml.toXmlString(pretty: pretty, indent: indent);
+  }
 }
 
 void main() {
@@ -145,6 +166,11 @@ void main() {
     ..id = 'https://stwupton.test.io/'
     ..title = 'Steven\'s Blog'
     ..link = Uri.parse('https://stwupton.github.io/')
-    ..items = [new Item()..title = 'Testing blog post'];
+    ..items = [
+      new Item()
+        ..title = 'Testing blog post'
+        ..link = 'https://stwupton.test.io/post'
+        ..date = new DateTime.now()
+    ];
   print(feed.toXmlString(pretty: true));
 }
