@@ -144,7 +144,7 @@ class Feed {
             }
 
             if (item.copyright != null)
-              builder.element('rights', item.copyright);
+              builder.element('rights', nest: item.copyright);
           });
         }
       });
