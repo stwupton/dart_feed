@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:xml/xml.dart';
 
 class Person {
@@ -40,6 +41,8 @@ class Feed {
   String title;
   DateTime updated;
 
+  Feed(this.title, {this.description});
+
   XmlNode _renderAtom() {
     XmlBuilder builder = new XmlBuilder();
 
@@ -63,7 +66,7 @@ class Feed {
         dateTime.toUtc().toIso8601String();
 
     builder
-      ..processing('xml', 'version="1.0"')
+      ..processing('xml', 'version="1.0" encoding="utf-8"')
       ..element('feed', attributes: {'xmlns': 'http://www.w3.org/2005/Atom'},
           nest: () {
         // Build required elements.
@@ -74,9 +77,8 @@ class Feed {
             'rel': 'alternate',
             'href': link.toString()
           })
-          ..element('updated', nest: standardiseDateTime(updated == null ?
-              new DateTime.now() :
-              updated));
+          ..element('updated', nest: standardiseDateTime(
+              updated == null ? new DateTime.now() : updated));
 
         // Build recommended elements.
         for (Person author in authors) buildPerson('author', author);
@@ -152,7 +154,40 @@ class Feed {
     return builder.build();
   }
 
-  XmlNode _renderRSS2() => '';
+  XmlNode _renderRSS2() {
+    XmlBuilder builder = new XmlBuilder();
+
+    // Utility function for converting all [DateTime] objects to UTC timezones
+    // and to an RFC 822 formatted [String].
+    String standardiseDateTime(DateTime dateTime) {
+      return new DateFormat('EEE, dd MMMM yyyy HH:mm:ss +0000')
+          .format(dateTime.toUtc());
+    }
+
+    builder
+      ..processing('xml', 'version="1.0" encoding="utf-8"')
+      ..element('rss', attributes: {'version': '2.0'}, nest: () {
+        builder.element('channel', nest: () {
+          // Build required channel elements.
+          if (description == null) {
+            throw new Exception(
+                'Property `description` is required when rendering to RSS2.');
+          }
+          builder
+            ..element('title', nest: title)
+            ..element('description', nest: description)
+            ..element('link', nest: link.toString())
+            ..element('lastBuildDate',
+                nest: standardiseDateTime(updated ?? new DateTime.now()))
+            ..element('docs', nest: 'http://blogs.law.harvard.edu/tech/rss');
+
+          // Build recommended channel elements.
+          
+        });
+      });
+
+    return builder.build();
+  }
 
   String toXmlString({renderer: FeedRenderer.atom, bool pretty: false,
       String indent: '  '}) {
@@ -162,15 +197,15 @@ class Feed {
 }
 
 void main() {
-  var feed = new Feed()
+  var feed = new Feed('Steven\'s Blog')
     ..id = 'https://stwupton.test.io/'
-    ..title = 'Steven\'s Blog'
     ..link = Uri.parse('https://stwupton.github.io/')
+    ..description = 'test'
     ..items = [
       new Item()
         ..title = 'Testing blog post'
         ..link = 'https://stwupton.test.io/post'
         ..date = new DateTime.now()
     ];
-  print(feed.toXmlString(pretty: true));
+  print(feed.toXmlString(renderer: FeedRenderer.rss2, pretty: true));
 }

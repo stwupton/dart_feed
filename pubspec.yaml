@@ -3,3 +3,4 @@ version: 0.0.1
 description: Create and update RSS/Atom feeds. A Dart port of feed (https://www.npmjs.com/package/feed).
 dependencies:
   xml: ^2.5.0
+  intl: ^0.14.0
